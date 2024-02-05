@@ -5,6 +5,41 @@
 # Generate an optimaized Verilog module using lib based on input truth table
 
 import subprocess
+from enum import Enum
+
+class gate_operation(Enum):
+    NAND = 1 # max 4 inputs
+    NOR = 2 #  max 4 inputs
+    INV = 3 # NOT- max 1 input
+    AND = 4 # max 4 inputs
+    OR = 5  # max 4 inputs
+    XOR = 6 # max 2 inputs
+    XNOR = 7 # max 2 inputs
+
+class wire:   
+    def __init__(self, name, input):
+        self.name = name
+        self.input = input
+        self.outputs = []
+    
+    def add_output(self, output):
+        self.outputs.append(output)
+
+class gate:
+    def __init__(self, name, operation, output_wire):
+        self.name = name
+        self.operation = operation
+        self.inputs = []
+        self.output = output_wire
+    
+    def add_input(self, input):
+        self.inputs.append(input)
+
+    def create_verilog_gate(self):
+        if self.operation == gate_operation.NAND:
+            ret_val =  "nand" + str(len(self.inputs)) + "$ " + self.name + " (" + self.output  + ", " + ", ".join(self.inputs) + ");"
+            print(ret_val)
+            return ret_val    
 
 def generate_minimized_truth_table(input_file):
     command = ['./../espresso.linux', 'truth_table.txt']
@@ -48,22 +83,33 @@ def read_min_bool_expression(bool_exps, input_labels, output_labels):
         if line == '':
             continue
         else:
-            # remove starting and ending parenthesis and ending semicolon
+            # make a tree with parent as OR and children as AND and leaf as input
+
             curr_exp = line.split('=')
             input_label = curr_exp[0]
             exp = curr_exp[1]
             exp = exp[2:-2] #remove starting and ending parenthesis and ending semicolon
 
             exp.strip('|')
-            print("split based on OR: ")
-            print(exp)
-            print("\n")
+            #num_terms_or = exp.len
+            # first layer of tree is of length num_terms_or
 
-            exp = exp.split('&')
-            print("split based on AND: ")
-            print(exp)
-            print("\n")
+            # print("split based on OR: ")
+            # print(exp)
+            
+            # print("\n")
 
+            # exp = exp.split('&')
+            # print("split based on AND: ")
+            # print(exp)
+            # print("\n")
+
+            # # for each term in exp, split based on NOT
+            # for term in exp:
+            #     exp_not = term.split('!')
+            #     print("split based on NOT: ")
+            #     print(exp_not)
+            #     print("\n")
 
 
 
@@ -75,4 +121,10 @@ if __name__ == "__main__":
     print(bool_expressions)
     print("\n")
     read_min_bool_expression(bool_expressions, input_labels, output_labels)
+
+
+    test_gate = gate("test_gate", gate_operation.NAND, "out")
+    test_gate.add_input("in1")
+    test_gate.add_input("in2")
+    test_gate.create_verilog_gate()
     
