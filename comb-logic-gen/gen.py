@@ -17,14 +17,33 @@ class gate_operation(Enum):
     XOR = 6 # max 2 inputs
     XNOR = 7 # max 2 inputs
 
+def get_gate_max_inputs(op):
+    if op == gate_operation.NAND:
+        return 4
+    if op == gate_operation.NOR:
+        return 4
+    if op == gate_operation.INV:
+        return 1
+    if op == gate_operation.AND:
+        return 4
+    if op == gate_operation.OR:
+        return 4
+    if op == gate_operation.XOR:
+        return 2
+    if op == gate_operation.XNOR:
+        return 2
+
 class wire:   
-    def __init__(self, name, input):
+    def __init__(self, name):
         self.name = name
         self.input = input
         self.outputs = []
     
     def add_output(self, output):
         self.outputs.append(output)
+
+    def add_input(self, input):
+        self.input = input
     
     def create_verilog_wire(self):
         return "wire " + self.name + ";"
@@ -40,7 +59,13 @@ class gate:
         self.output = output_wire
     
     def add_input(self, input):
-        self.inputs.append(input)
+        curr_num_inputs = len(self.inputs)
+        op = self.operation
+        self_max_inputs = get_gate_max_inputs(op)
+        if (curr_num_inputs == self_max_inputs):
+            print("Error: Max inputs for gate reached")
+        else:
+            self.inputs.append(input)
 
     def create_verilog_gate(self):
         if self.operation == gate_operation.NAND:
@@ -50,7 +75,11 @@ class gate:
         if self.operation == gate_operation.INV:
             ret_val =  "inv" + str(len(self.inputs)) + "$ " + self.name + " (" + self.output  + ", " + ", ".join(self.inputs) + ");"
             #print(ret_val)
-            return ret_val    
+            return ret_val
+        if self.operation == gate_operation.AND:
+            ret_val =  "and" + str(len(self.inputs)) + "$ " + self.name + " (" + self.output  + ", " + ", ".join(self.inputs) + ");"
+            #print(ret_val)
+            return ret_val   
           
 
 def generate_minimized_truth_table(input_file):
@@ -137,13 +166,14 @@ def read_min_bool_expression(bool_exps, input_labels, output_labels):
             if len(stack) == 1:
                 stacks[output_label] = stack
                 continue
-            stack.append("AND")
+            if len(exp_and) > 1:
+                stack.append("AND")
 
             # print("stack: ")
             # print(stack)
-
-            stacks[output_label] = stack
             # print("\n-----------------------------------------------------------\n\n")
+            stacks[output_label] = stack
+            
     print("\n")
     print("Stacks dictionary: ")
     pprint.pprint(stacks)
@@ -157,30 +187,33 @@ def read_min_bool_expression(bool_exps, input_labels, output_labels):
     print("\n")
     print("Reversed Stacks dictionary: ")
     pprint.pprint(reversed_stacks)
-    print("\n")
-
+    print("\n-----------------------------------------------------------\n\n")
+    
     return reversed_stacks
 
 def generate_verilog_module(dict, input_labels, output_labels):
+    stack_wires = []
+
     for output in output_labels:
+        print("expression: ")
+        print(output)
+        print("\n")
         gate_wire_dict = {}
         stack = dict[output]
         print("stack: ")
         print(stack)
         print('\n')
-        if "NOT" in stack:
+        while "NOT" in stack:
             while stack[-1] != 'NOT':
-                print("inside NOT while loop")
+                print("\ninside NOT while loop")
                 temp = stack.pop()
-                if temp == 'NOT':
-                    #why is this detection not working properly?
-                    print("popped NOT")
-                    continue
                 print ("\nstack after pop: ")
                 print (stack)
+                print ('\n')
                 if isinstance(temp, list) and len(temp) == 1:
                     temp = temp[0]            
-                wire_not = wire("not_" + temp + "_wire", temp)
+                wire_not = wire("not_" + temp + "_wire")
+                wire_not.add_input(temp)
                 wire_name = wire_not.get_wire_name()
 
                 gate_not = gate("not_" + temp, gate_operation.INV, wire_name)
@@ -189,34 +222,63 @@ def generate_verilog_module(dict, input_labels, output_labels):
 
                 gate_wire_dict[verilog_gate] = wire_name
                 pprint.pprint(gate_wire_dict)
-                
-                
+            print("ending pop: ")
+            print(stack.pop())
+            stack.append(wire_name)
+               
 
         print ("\nstack at end of NOT: ")
         print (stack)
 
     
-        if "AND" in stack:
-            while stack[-1] != "AND":
+        while "AND" in stack:
+            while (stack[-1] != "AND"):
                 print("inside AND while loop")
-                print(stack.pop())
-                print('\n')
+                op1 = stack.pop()
+                op2 = stack.pop()
+                print ("\nstack after pop: ")
+                print (stack)
+                print ('\n')   
+                if isinstance(op1, list) and len(temp) == 1:
+                    op1 = op1[0]
+                if isinstance(op2, list) and len(temp) == 1:
+                    op2 = op2[0]
+                wire_out = wire("and_" + op1 + "_" + op2 + "_wire")
+                wire_out_name = wire_out.get_wire_name()
 
-        print("outside while loop")
+                gate_and = gate("and_" + op1 + "_" + op2, gate_operation.AND, wire_out_name)
+                gate_and.add_input(op1)
+                gate_and.add_input(op2)
+                verilog_gate = gate_and.create_verilog_gate()
+                print("verilog gate: ")
+                print(verilog_gate)
+                print("\n")
+
+                gate_wire_dict[verilog_gate] = wire_out_name
+                pprint.pprint(gate_wire_dict)
+            print("ending pop: ")
+            temp = stack.pop()
+            print(temp)
+            stack.append(wire_out_name)
+
+        print("outside AND while loop")
         print(stack)
         print('\n-----------------------------------------------------\n')
 
-         
-
-
-
-
 if __name__ == "__main__":
     input_file = "truth_table.txt"
+    
     min_truth_table = generate_minimized_truth_table(input_file)
     num_inputs, num_outputs, input_labels, output_labels, num_rows, truth_table = read_truth_table(min_truth_table)
     bool_expressions = generate_minimized_bool_expression(input_file)
+
+    print ("\nbool expressions:")
     print(bool_expressions)
+    print("\n")
 
     dict_bool_exp = read_min_bool_expression(bool_expressions, input_labels, output_labels)
+
+
+    
+
     generate_verilog_module(dict_bool_exp, input_labels, output_labels)
