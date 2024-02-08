@@ -7,6 +7,7 @@
 import subprocess
 import pprint
 from enum import Enum
+from string import punctuation
 
 class gate_operation(Enum):
     NAND = 1 # max 4 inputs
@@ -133,48 +134,64 @@ def read_min_bool_expression(bool_exps, input_labels, output_labels):
             output_label = curr_exp[0]
             output_label = output_label.strip()
             exp = curr_exp[1]
-            exp = exp[2:-2] #remove starting and ending parenthesis and ending semicolon
-            # print("current expression: ")
-            # print(exp)
-            # print("\n")
-
-            exp_or = exp.strip('|')
+            exp = exp.strip(';') #remove starting and ending parenthesis and ending semicolon
+            exp = exp.replace(" ", "")
+            print("current expression: ")
+            print(exp)
+            print("\n")
+            exp_or = exp.split('|')
             num_terms_or = len(exp_or)
 
-            # print("split based on OR: ")
-            # print(exp_or)
-            # print("\n")
+            print("split based on OR: ")
+            print(exp_or)
+            print("\n")
 
-            exp_and = exp_or.split('&')
-            exp_and = list(filter(None, exp_and))
-            # print("split based on AND: ")
-            # print(exp_and)
-            # print("\n")
+            exp_and = []
+            for exps in exp_or:
+                if isinstance(exps, list) and len(exps) == 1:
+                    exps = exps[0]
+                exp_and.append(exps.split('&'))
+            
+            for i in range(len(exp_and)):
+                if isinstance(exp_and[i], list) and len(exp_and[i]) == 1:
+                    exp_and[i] = exp_and[i][0]
+
+            print("split based on AND: ")
+            print(exp_and)
+            print("\n")
 
             for term in exp_and:
                 if term[0] == '!':
                     exp_not = term.split('!')
                     exp_not = list(filter(None, exp_not))
-                    # print("split based on NOT: ")
-                    # print(exp_not)
-                    # print("\n")
+                    if isinstance(exp_not, list) and len(exp_not) == 1:
+                        exp_not = exp_not[0]  
+                    print("split based on NOT: ")
+                    print(exp_not)
+                    print("\n")
                     stack.append(exp_not)
                     stack.append("NOT")
             for term in exp_and:
+                if isinstance(term, list) and len(term) == 1:
+                    term = term[0]  
                 if term[0] != '!':
                     stack.append(term)
-            # print("stack after AND: ")
-            # print(stack)
-            # print("\n")
+            print("stack after splits: ")
+            print(stack)
+            print("\n")
             if len(stack) == 1:
                 stacks[output_label] = stack
                 continue
             if len(exp_and) > 1:
                 stack.append("AND")
 
-            # print("stack: ")
-            # print(stack)
-            # print("\n-----------------------------------------------------------\n\n")
+            if len(exp_and) > 1:
+                stack.append("OR")
+            
+
+            print("stack: ")
+            print(stack)
+            print("\n-----------------------------------------------------------\n\n")
             stacks[output_label] = stack
             
     print("\n")
