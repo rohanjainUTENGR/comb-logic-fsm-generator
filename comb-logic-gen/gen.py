@@ -171,7 +171,6 @@ def read_min_bool_expression(bool_exps, input_labels, output_labels):
                 continue
             if len(exp_and) > 1:
                 stack.append("AND")
-
             # print("stack: ")
             # print(stack)
             # print("\n-----------------------------------------------------------\n\n")
@@ -345,7 +344,8 @@ def generate_verilog_module(output_file, output_labels, input_labels, gate_wire_
     for gate in gate_wire_dict:
         output_file.write("\t" + gate + "\n")
 
-    print("\n\n")
+    output_file.write("\n")
+
     for output in output_labels:
         output_file.write("\tassign " + output + " = " + wire_output_dict[output] + ";\n")
 
